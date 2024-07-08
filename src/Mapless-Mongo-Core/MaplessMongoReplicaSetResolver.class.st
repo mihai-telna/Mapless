@@ -34,7 +34,7 @@ MaplessMongoReplicaSetResolver >> findPrimaryFor: aMaplessMongoReplicaSetPool [
 			(rsStatus members anySatisfy: [ :e | e isPrimary ])
 				ifFalse: [ ReplicaSetPrimaryNotFound
 						signal: 'Primary node could not be reached.' ].
-			self updateStatusFromStatus: rsStatus.
+			self updateStatusFromStatus: rsStatus maplessMongoReplicaSetPool: aMaplessMongoReplicaSetPool.
 			aMaplessMongoReplicaSetPool onPrimaryFound ].
 	index := index + 1 ]
 		ensure: [ client ifNotNil: [ client close ] ] ]
@@ -87,23 +87,26 @@ MaplessMongoReplicaSetResolver >> secondaryUrls [
 ]
 
 { #category : #actions }
-MaplessMongoReplicaSetResolver >> updateStatusFrom: aMongoAPI [
+MaplessMongoReplicaSetResolver >> updateStatusFrom: aMongoAPI maplessMongoReplicaSetPool: aMaplessMongoReplicaSetPool [
 	"Make this resolver aware of the latest status of the replica set according to
 	the informed status of the replica set as reported from aMongoAPI."
 
-	self updateStatusFromStatus: aMongoAPI replicaSetStatus
+	self updateStatusFromStatus: aMongoAPI replicaSetStatus maplessMongoReplicaSetPool: aMaplessMongoReplicaSetPool
 ]
 
 { #category : #actions }
-MaplessMongoReplicaSetResolver >> updateStatusFromStatus: aMongoReplicaSetStatus [
+MaplessMongoReplicaSetResolver >> updateStatusFromStatus: aMongoReplicaSetStatus maplessMongoReplicaSetPool: aMaplessMongoReplicaSetPool [
 	"Make this resolver aware of the latest status of 
 	the replica set according to aMongoReplicaSetStatus."
+	"Nodes can have weight 0 so they can not be elected for the db operations. Do we exclude them here too?"
 
 	primaryUrl := (aMongoReplicaSetStatus members
 		detect: [ :each | each isPrimary ]
 		ifNone: [ ReplicaSetPrimaryNotFound signal: 'Primary node unavailable?' ]) name asMongoUrl.
 	secondaryUrls := aMongoReplicaSetStatus secondaryMembers
-		collect: [ :e | e name asMongoUrl ].
+		select:[:e| (mongoUrls contains: [:each| (each host = e host) and: [each port = e port] ]) 
+			and: [aMaplessMongoReplicaSetPool loadBalancer isElectable: e]]
+		thenCollect: [ :e | e name asMongoUrl ].
 		
 	self triggerEvent: #rolesUpdated
 ]

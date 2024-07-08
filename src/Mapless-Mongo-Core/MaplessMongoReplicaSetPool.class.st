@@ -265,7 +265,7 @@ MaplessMongoReplicaSetPool >> ensureTopology [
 		ifNil: [ resolver resetRoles.
 			ReplicaSetPrimaryNotFound
 				signal: 'Primary node could not be reached.' ].
-	resolver updateStatusFrom: client.
+	resolver updateStatusFrom: client maplessMongoReplicaSetPool: self.
 
 ]
 

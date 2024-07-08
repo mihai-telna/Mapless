@@ -53,6 +53,7 @@ MaplessWeightedRandomPolicy >> getNodeFor: aMongoUrl [
 	^ self nodes
 		detect:
 			[ :node | aMongoUrl port = node value port and: [ aMongoUrl host = node value host ] ]
+		ifNone:[]
 ]
 
 { #category : #initialization }
